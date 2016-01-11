@@ -1,11 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jan 10 11:57:01 2016
-
-@author: leonardojofre
-"""
-
-#segunda version
+#segunda version sin biblotecas
 import binascii
 
 registers = {
@@ -24,32 +17,51 @@ operations = {
     ('R', '000000', '000000') :'nop',
     ('R', '000000', '100000') :'add',
     ('I', '001000', None)     :'addi',
+    ('I', '001001', None)     :'addiu',
+    ('R', '000000', '100001') :'addu',
     ('R', '000000', '100100') :'and',
     ('I', '000100', None)     :'beq',
     ('J', '000010', None)     :'j',
     ('J', '000011', None)     :'jal',
     ('R', '000000', '001000') :'jr',
-    ('I', '100011', '100011') :'lw',
+    ('I', '100011', None)     :'lw',
     ('R', '000000', '100101') :'or',
     ('R', '000000', '101010') :'slt',
+    ('R', '000000', '000010') : 'srl',
+    ('R', '000000', '000011') : 'sra',
+    ('R', '000000', '000100') : 'sllv',
     ('R', '000000', '000000') :'sll',
     ('I', '101011', None)     :'sw',
+    ('I', '001101', None)     :'ori',
+    ('I', '001010', None)     :'slti',
+    ('I', '001100', None)     :'andi',
     ('R', '000000', '100010') :'sub',
+    ('I', '001110', None)     :'xori',
+    ('R', '000000','100110')  :'xor',
+    ('R', '000000','100111')  :'nor',
+    ('R', '000000','000110')  :'srlv',
+    ('R', '000000','000111')  :'srav',   
 }
-        
+
+# test bin file
 bin_file = open("./alu_test.bin", mode = 'rb')
 
-scale = 16
-
 def instruction_generator(bin_file):
+    scale = 16 #hexadecimal
     while 1:
         try:
             yield bin(int(binascii.hexlify(bin_file.read(4)), scale))[2:].zfill(32)
         except:
             return
 
+def padhexa(s):
+    #add padding to hex number
+    return '0x' + s[2:].zfill(8)
+
 instructions = instruction_generator(bin_file = bin_file)
-mem = hex(int('00000000',2))
+hexa_dir = padhexa(hex(int('000000',2)))
+
+
 for ins in instructions:
     # si fuera del tipo R
     opcode = ins[0:6]
@@ -63,16 +75,26 @@ for ins in instructions:
     address = ins[16:32]
     
     # si fuera del tipo J
-    jump = ins[11:32]
-    hexa_ins = hex(int(ins, 2))
-    print 'direccion: ', mem 
+    jump = ins[6:32]
+    hexa_ins = padhexa(hex(int(ins, 2)))
+    
     try:
-        print operations[("R", '000000', funct)], registers[rs], registers[rt], registers[rd]
+        mnemonic = hexa_dir, hexa_ins, operations[("R", opcode, funct)], registers[rd], registers[rs], registers[rt]
+        print("%s:%s\t%s %s %s %s" %mnemonic)
     except:
         try:
-            print operations[("I", opcode, None)]
+            if opcode == '101011':
+                nmenomic = hexa_dir, hexa_ins, operations[("I", opcode, None)], hex(int(address, 2)), registers[rs]
+                print(mnemonic)
+            else:
+                mnemonic = hexa_dir, hexa_ins, operations[("I", opcode, None)], registers[rt], registers[rs], hex(int(address, 2))
+                print("%s:%s\t%s %s %s %s" %mnemonic)
         except:
             try:
-                operations[("J",opcode, None)]
+                mnemonic = hexa_dir, hexa_ins, operations[("J",opcode, None)], jump
+                print("%s:%s\t%s %s" %mnemonic)
             except:
-                pass
+                mnemonic = hexa_dir,hexa_ins, "unknown"
+                print("%s:%s\t%s" %mnemonic)
+    #inc the address
+    hexa_dir = padhexa(hex(int(hexa_dir, 16) + 4))
